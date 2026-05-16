@@ -1,6 +1,6 @@
 package io.github.qishr.cascara.lang.css.ast;
 
-import io.github.qishr.cascara.lang.css.CssToken;
+import io.github.qishr.cascara.lang.css.token.CssToken;
 
 public class RuleNode extends CssNode {
     private CssToken selectorToken;

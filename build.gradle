@@ -12,7 +12,7 @@ repositories {
 
 
 dependencies {
-    implementation(platform("io.github.qishr:cascara-meta-bom:0.1.0"))
+    implementation(platform("io.github.qishr:cascara-meta-bom:0.1.5"))
 
     // JUnit
     testImplementation 'org.junit.jupiter:junit-jupiter-api'

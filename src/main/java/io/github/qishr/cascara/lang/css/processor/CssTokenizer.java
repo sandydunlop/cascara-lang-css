@@ -1,12 +1,17 @@
-package io.github.qishr.cascara.lang.css;
+package io.github.qishr.cascara.lang.css.processor;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class CssTokenizer {
+import io.github.qishr.cascara.common.lang.processor.Tokenizer;
+import io.github.qishr.cascara.lang.css.token.CssToken;
+import io.github.qishr.cascara.lang.css.token.CssTokenType;
 
+public class CssTokenizer extends AbstractCssProcessor<CssTokenizer> implements Tokenizer<CssToken> {
+    private URI uri;
     private String input;
     private int pos = 0;
     private int line = 1;
@@ -16,7 +21,13 @@ public class CssTokenizer {
     private enum State { SELECTOR, PROPERTY, VALUE, AT_RULE }
     private State currentState = State.SELECTOR;
 
+    @Override protected CssTokenizer self() { return this; }
+
     public List<CssToken> tokenize(String text) {
+        return tokenize(text, null);
+    }
+
+    public List<CssToken> tokenize(String text, URI uri) {
         this.input = text;
         this.pos = 0;
         this.line = 1;
@@ -42,7 +53,7 @@ public class CssTokenizer {
 
             // 3. Handle Delimiters and State Changes
             if (ch == '{') {
-                tokens.add(createToken(CssToken.Type.DELIMITER, "{"));
+                tokens.add(createToken(CssTokenType.DELIMITER, "{"));
                 // If we were in an At-Rule (like @font-face), we now expect properties.
                 // If it was @media, we expect selectors.
                 // Defaulting to PROPERTY is often best for IDE syntax highlighting.
@@ -51,19 +62,19 @@ public class CssTokenizer {
                 continue;
             }
             if (ch == '}') {
-                tokens.add(createToken(CssToken.Type.DELIMITER, "}"));
+                tokens.add(createToken(CssTokenType.DELIMITER, "}"));
                 currentState = State.SELECTOR;
                 advance();
                 continue;
             }
             if (ch == ':') {
-                tokens.add(createToken(CssToken.Type.OPERATOR, ":"));
+                tokens.add(createToken(CssTokenType.OPERATOR, ":"));
                 if (currentState == State.PROPERTY) currentState = State.VALUE;
                 advance();
                 continue;
             }
             if (ch == ';') {
-                tokens.add(createToken(CssToken.Type.DELIMITER, ";"));
+                tokens.add(createToken(CssTokenType.DELIMITER, ";"));
                 // If we just finished an @import or a property value, return to the relevant state
                 if (currentState == State.VALUE) {
                     currentState = State.PROPERTY;
@@ -105,7 +116,7 @@ public class CssTokenizer {
             sb.append(input.charAt(pos));
             advance();
         }
-        return new CssToken(CssToken.Type.PROPERTY_NAME, sb.toString(), startPos, startLine, startCol);
+        return new CssToken(CssTokenType.PROPERTY_NAME, sb.toString(), startPos, startLine, startCol);
     }
 
     private CssToken consumeValuePart() {
@@ -114,24 +125,24 @@ public class CssTokenizer {
 
         // Hex Color
         if (remaining.startsWith("#")) {
-            return consumeRegex(Pattern.compile("^#[a-fA-F0-9]{3,8}"), CssToken.Type.COLOR_HEX);
+            return consumeRegex(Pattern.compile("^#[a-fA-F0-9]{3,8}"), CssTokenType.COLOR_HEX);
         }
         // Important flag
         if (remaining.startsWith("!important")) {
-            return consumeRegex(Pattern.compile("^!important"), CssToken.Type.IMPORTANT);
+            return consumeRegex(Pattern.compile("^!important"), CssTokenType.IMPORTANT);
         }
         // Unit/Number
         if (Character.isDigit(remaining.charAt(0)) || remaining.charAt(0) == '.') {
-            return consumeRegex(Pattern.compile("^[0-9.]+(%|[a-z]+)?"), CssToken.Type.UNIT_VALUE);
+            return consumeRegex(Pattern.compile("^[0-9.]+(%|[a-z]+)?"), CssTokenType.UNIT_VALUE);
         }
 
         // Default to general value part (like 'sans-serif' or 'bold')
-        return consumeRegex(Pattern.compile("^[^;!}]+"), CssToken.Type.PROPERTY_VALUE_PART);
+        return consumeRegex(Pattern.compile("^[^;!}]+"), CssTokenType.PROPERTY_VALUE_PART);
     }
 
     private CssToken consumeSelector() {
         // Collects everything until the next '{'
-        return consumeRegex(Pattern.compile("^[^{]+"), CssToken.Type.SELECTOR);
+        return consumeRegex(Pattern.compile("^[^{]+"), CssTokenType.SELECTOR);
     }
 
     private CssToken consumeComment() {
@@ -150,11 +161,11 @@ public class CssTokenizer {
             }
             advance();
         }
-        return new CssToken(CssToken.Type.COMMENT, sb.toString(), startPos, startLine, startCol);
+        return new CssToken(CssTokenType.COMMENT, sb.toString(), startPos, startLine, startCol);
     }
 
     // Helper to match a pattern at current position and advance
-    private CssToken consumeRegex(Pattern pattern, CssToken.Type type) {
+    private CssToken consumeRegex(Pattern pattern, CssTokenType type) {
         Matcher m = pattern.matcher(input.substring(pos));
         if (m.find()) {
             int startPos = pos;
@@ -187,7 +198,7 @@ public class CssTokenizer {
         return (pos + 1 < input.length()) ? input.charAt(pos + 1) : '\0';
     }
 
-    private CssToken createToken(CssToken.Type type, String lexeme) {
+    private CssToken createToken(CssTokenType type, String lexeme) {
         return new CssToken(type, lexeme, pos, line, column);
     }
 
@@ -214,7 +225,7 @@ public class CssTokenizer {
         // If it's a block rule (like @media), it stays in AT_RULE until '{'
         currentState = State.AT_RULE;
 
-        return new CssToken(CssToken.Type.AT_RULE_NAME, "@" + atRuleName, startPos, startLine, startCol);
+        return new CssToken(CssTokenType.AT_RULE_NAME, "@" + atRuleName, startPos, startLine, startCol);
     }
 
     private CssToken consumeAtRuleParameter() {
@@ -239,6 +250,6 @@ public class CssTokenizer {
             advance();
         }
 
-        return new CssToken(CssToken.Type.AT_RULE_PARAMETER, sb.toString().trim(), startPos, startLine, startCol);
+        return new CssToken(CssTokenType.AT_RULE_PARAMETER, sb.toString().trim(), startPos, startLine, startCol);
     }
 }

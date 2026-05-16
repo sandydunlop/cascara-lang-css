@@ -1,36 +1,46 @@
-package io.github.qishr.cascara.lang.css;
+package io.github.qishr.cascara.lang.css.processor;
 
 import io.github.qishr.cascara.common.diagnostic.Reporter;
-import io.github.qishr.cascara.lang.css.CssToken.Type;
+import io.github.qishr.cascara.common.lang.processor.Parser;
+import io.github.qishr.cascara.lang.css.CssDocument;
 import io.github.qishr.cascara.lang.css.ast.AtRuleNode;
 import io.github.qishr.cascara.lang.css.ast.CssNode;
 import io.github.qishr.cascara.lang.css.ast.DeclarationNode;
 import io.github.qishr.cascara.lang.css.ast.RuleNode;
 import io.github.qishr.cascara.lang.css.ast.StylesheetNode;
+import io.github.qishr.cascara.lang.css.token.CssToken;
+import io.github.qishr.cascara.lang.css.token.CssTokenType;
 
+import java.net.URI;
 import java.util.List;
 
-public class CssParser {
+public class CssParser extends AbstractCssProcessor<CssParser> implements Parser<CssDocument, CssToken> {
 
-    private Reporter reporter;
+    private URI uri;
     private List<CssToken> tokens;
     private int current = 0;
 
     public CssParser() {
     }
 
-    public void setReporter(Reporter reporter){
-        this.reporter = reporter;
+    @Override protected CssParser self() { return this; }
+
+    public CssDocument parse(String text) {
+        return parse(text, null);
     }
 
-    /**
-     * The main entry point for the parser.
-     */
-    public Css parse(String text) {
-        trace("parse");
+    public CssDocument parse(String text, URI uri) {
         CssTokenizer tokenizer = new CssTokenizer();
         tokens = tokenizer.tokenize(text);
+        return parse(tokens, uri);
+    }
 
+    public CssDocument parse(List<CssToken> tokens) {
+        return parse(tokens, null);
+    }
+
+    public CssDocument parse(List<CssToken> tokens, URI uri) {
+        this.tokens = tokens;
         CssToken startToken = peek();
         StylesheetNode stylesheet = new StylesheetNode(startToken);
 
@@ -41,7 +51,7 @@ public class CssParser {
             }
         }
 
-        return new Css(stylesheet);
+        return new CssDocument(stylesheet);
     }
 
     // -------------------------------------------------------------------------
@@ -52,18 +62,18 @@ public class CssParser {
         trace("parseTopLevelStatement");
 
         // Comments can appear anywhere, but we consume them here to keep them in the AST
-        while (check(Type.COMMENT)) {
+        while (check(CssTokenType.COMMENT)) {
             advance(); // Ignore for now, but we could create a CommentNode if needed
             // For now, let's just discard comments to simplify the initial AST
         }
 
         // Handle At-Rules
-        if (check(Type.AT_RULE_NAME)) {
+        if (check(CssTokenType.AT_RULE_NAME)) {
             return parseAtRule();
         }
 
         // Handle Style Rules (Selectors)
-        if (check(Type.SELECTOR)) {
+        if (check(CssTokenType.SELECTOR)) {
             return parseRule();
         }
 
@@ -80,19 +90,19 @@ public class CssParser {
 
     private CssNode parseAtRule() {
         trace("parseAtRule");
-        CssToken atRuleName = consume(Type.AT_RULE_NAME, "Expected at-rule name (e.g., @media)");
+        CssToken atRuleName = consume(CssTokenType.AT_RULE_NAME, "Expected at-rule name (e.g., @media)");
 
         AtRuleNode atRule = new AtRuleNode(atRuleName);
         atRule.setNameToken(atRuleName);
 
         // Consume Parameters
-        if (check(Type.AT_RULE_PARAMETER)) {
+        if (check(CssTokenType.AT_RULE_PARAMETER)) {
             CssToken paramToken = advance();
             atRule.setParameterToken(paramToken);
         }
 
         // Consume Opening Brace '{'
-        consume(Type.DELIMITER, "Expected '{' to start at-rule block");
+        consume(CssTokenType.DELIMITER, "Expected '{' to start at-rule block");
 
         // Parse Rule Contents (if it's a block-type at-rule like @media)
         parseBlock(atRule);
@@ -102,13 +112,13 @@ public class CssParser {
 
     private CssNode parseRule() {
         trace("parseRule");
-        CssToken selector = consume(Type.SELECTOR, "Expected selector to start rule");
+        CssToken selector = consume(CssTokenType.SELECTOR, "Expected selector to start rule");
 
         RuleNode rule = new RuleNode(selector);
         rule.setSelectorToken(selector);
 
         // Consume Opening Brace '{'
-        consume(Type.DELIMITER, "Expected '{' to start rule block");
+        consume(CssTokenType.DELIMITER, "Expected '{' to start rule block");
 
         // Parse Declarations
         parseBlock(rule);
@@ -123,10 +133,10 @@ public class CssParser {
     private void parseBlock(CssNode parent) {
         trace("parseBlock");
 
-        while (!check(Type.DELIMITER) && !isAtEnd()) { // Loop until we hit '}' or EOF
+        while (!check(CssTokenType.DELIMITER) && !isAtEnd()) { // Loop until we hit '}' or EOF
 
             // Handle Declaration inside Rule
-            if (check(Type.PROPERTY_NAME)) {
+            if (check(CssTokenType.PROPERTY_NAME)) {
                 DeclarationNode decl = parseDeclaration();
                 parent.addChild(decl);
             }
@@ -139,25 +149,25 @@ public class CssParser {
         }
 
         // Consume Closing Brace '}'
-        consume(Type.DELIMITER, "Expected '}' to close block");
+        consume(CssTokenType.DELIMITER, "Expected '}' to close block");
     }
 
 
     private DeclarationNode parseDeclaration() {
         trace("parseDeclaration");
-        CssToken propertyToken = consume(Type.PROPERTY_NAME, "Expected property name");
+        CssToken propertyToken = consume(CssTokenType.PROPERTY_NAME, "Expected property name");
 
         DeclarationNode declaration = new DeclarationNode(propertyToken);
         declaration.setPropertyToken(propertyToken);
 
         // Consume Colon ':'
-        consume(Type.DELIMITER, "Expected ':' after property name");
+        consume(CssTokenType.DELIMITER, "Expected ':' after property name");
 
         // Parse Value(s)
         parseDeclarationValue(declaration);
 
         // Consume Semicolon ';' (Optional but good practice)
-        if (check(Type.DELIMITER)) {
+        if (check(CssTokenType.DELIMITER)) {
             advance(); // Consume ';'
         }
         // NOTE: The parser allows a declaration without a final semicolon if the next token is '}'
@@ -169,10 +179,10 @@ public class CssParser {
         trace("parseDeclarationValue");
 
         // Consume tokens until we hit a semicolon (;) or a closing brace (})
-        Type[] valueTypes = {
-                Type.KEYWORD, Type.NUMBER, Type.UNIT_VALUE, Type.COLOR_HEX,
-                Type.FUNCTION, Type.STRING, Type.OPERATOR, Type.IMPORTANT,
-                Type.PROPERTY_VALUE_PART // The generic fallback
+        CssTokenType[] valueTypes = {
+                CssTokenType.KEYWORD, CssTokenType.NUMBER, CssTokenType.UNIT_VALUE, CssTokenType.COLOR_HEX,
+                CssTokenType.FUNCTION, CssTokenType.STRING, CssTokenType.OPERATOR, CssTokenType.IMPORTANT,
+                CssTokenType.PROPERTY_VALUE_PART // The generic fallback
         };
 
         while (check(valueTypes)) {
@@ -197,8 +207,8 @@ public class CssParser {
     /// Log the current method name and upcoming tokens
     private void trace(String methodName) {
         reporter.trace("L%d C%d I%d %28s: %s",
-                tokens.get(current).getLine(),
-                tokens.get(current).getColumn(),
+                tokens.get(current).getStartLine(),
+                tokens.get(current).getStartColumn(),
                 current, methodName, upcomingTokens());
     }
 
@@ -235,10 +245,10 @@ public class CssParser {
         return tokens.get(current);
     }
 
-    private boolean check(Type... types) {
+    private boolean check(CssTokenType... types) {
         if (current >= tokens.size()) return false;
-        Type currentType = peek().getType();
-        for (Type type : types) {
+        CssTokenType currentType = peek().getType();
+        for (CssTokenType type : types) {
             if (currentType == type) {
                 return true;
             }
@@ -250,7 +260,7 @@ public class CssParser {
         return current >= tokens.size();
     }
 
-    private CssToken consume(Type type, String message) {
+    private CssToken consume(CssTokenType type, String message) {
         if (check(type)) {
             return advance();
         }
@@ -261,8 +271,8 @@ public class CssParser {
         public ParseException(String message, CssToken token) {
             super(String.format("Parser Error: %s at L:%d C:%d. Found: %s",
                                 message,
-                                token.getLine(),
-                                token.getColumn(),
+                                token.getStartLine(),
+                                token.getStartColumn(),
                                 token.getType()));
         }
     }

@@ -1,11 +1,14 @@
 package io.github.qishr.cascara.lang.css.ast;
 
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github.qishr.cascara.lang.css.CssToken;
+import io.github.qishr.cascara.common.lang.ast.AstNode;
+import io.github.qishr.cascara.common.lang.ast.CommentAstNode;
+import io.github.qishr.cascara.lang.css.token.CssToken;
 
-public class CssNode {
+public class CssNode implements AstNode {
     CssNode parent = null;
     List<CssNode> children = new ArrayList<>();
     String anchorName = null;
@@ -92,6 +95,42 @@ public class CssNode {
 
     public void setStartToken(CssToken startToken) {
         this.startToken = startToken;
+    }
+
+    @Override
+    public int getStartLine() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getStartLine'");
+    }
+
+    @Override
+    public int getStartColumn() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getStartColumn'");
+    }
+
+    @Override
+    public int getEndLine() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getEndLine'");
+    }
+
+    @Override
+    public int getEndColumn() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getEndColumn'");
+    }
+
+    @Override
+    public URI getOriginUri() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getOriginUri'");
+    }
+
+    @Override
+    public List<CommentAstNode> getComments() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getComments'");
     }
 
     // public CssNode findNode(CssNode root, String... path) {
