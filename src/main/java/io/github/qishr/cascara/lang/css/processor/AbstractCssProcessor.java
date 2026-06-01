@@ -12,7 +12,7 @@ public abstract class AbstractCssProcessor<P extends Processor> implements Proce
     public static final ContentType CSS_CONTENT_TYPE = new
             ContentType("Cascading style sheet")
             .withSuffix(".css")
-            .withMimeType("text/css");
+            .withType("text/css");
 
     protected CssOptions options = new CssOptions();
     protected Reporter reporter = new NoOpReporter();

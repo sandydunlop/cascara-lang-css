@@ -5,7 +5,6 @@ module cascara.lang.css {
 
     exports io.github.qishr.cascara.lang.css;
     exports io.github.qishr.cascara.lang.css.ast;
-    exports io.github.qishr.cascara.lang.css.exception;
     exports io.github.qishr.cascara.lang.css.processor;
     exports io.github.qishr.cascara.lang.css.token;
 

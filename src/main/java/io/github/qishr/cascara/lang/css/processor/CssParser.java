@@ -84,7 +84,7 @@ public class CssParser extends AbstractCssProcessor<CssParser> implements Parser
 
         // Synchronization/Error Recovery: Skip token if we don't recognize it
         CssToken errorToken = advance();
-        reporter.error("Unexpected token at top level: " + errorToken.getType(), errorToken);
+        reporter.error(null, "Unexpected token at top level: " + errorToken.getType(), errorToken);
         return null;
     }
 
@@ -144,7 +144,7 @@ public class CssParser extends AbstractCssProcessor<CssParser> implements Parser
             else {
                 // Synchronization/Error Recovery: Skip unknown tokens within the block
                 CssToken errorToken = advance();
-                reporter.error("Unexpected token inside block: " + errorToken.getType(), errorToken);
+                reporter.error(null, "Unexpected token inside block: " + errorToken.getType(), errorToken);
             }
         }
 
